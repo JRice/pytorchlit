@@ -22,23 +22,23 @@ model = LinearModel().to(device)
 
 # 4. Loss and Optimizer
 criterion = nn.MSELoss() # Mean Squared Error
-optimizer = optim.SGD(model.parameters(), lr=0.01) # Stochastic Gradient Descent
+optimizer = optim.SGD(model.parameters(), lr=0.1) # Stochastic Gradient Descent
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.5) # Learning rate decay
 
 # 5. The Training Loop
 for epoch in range(100):
-    # Forward pass: Compute predicted y by passing x to the model
     pred_y = model(X)
-
-    # Compute loss
     loss = criterion(pred_y, Y)
 
-    # Zero gradients, perform a backward pass, and update the weights
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
+    scheduler.step()
+
     if (epoch + 1) % 10 == 0:
-        print(f'Epoch [{epoch+1}/100], Loss: {loss.item():.4f}')
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f'Epoch {epoch+1}, Loss: {loss.item():.4f}, LR: {current_lr:.4f}')
 
 # Check the learned parameters
 [w, b] = model.parameters()
