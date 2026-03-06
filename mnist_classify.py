@@ -25,24 +25,40 @@ test_loader = DataLoader(
 
 class SimpleCNN(nn.Module):
     def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5) # 1 input channel (gray), 10 filters
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.fc1 = nn.Linear(320, 50) # Fully connected layer
-        self.fc2 = nn.Linear(50, 10)  # 10 output classes (digits 0-9)
+        super(SimpleCNN, self).__init__()
+        # The "Eyes" - Extraction
+        self.conv1 = nn.Conv2d(1, 32, 3, 1)
+        self.conv2 = nn.Conv2d(32, 64, 3, 1)
+        
+        # The "Safety" - Prevents Overfitting
+        self.dropout1 = nn.Dropout(0.25)
+        self.dropout2 = nn.Dropout(0.5)
+        
+        # The "Brain" - Reasoning
+        self.fc1 = nn.Linear(9216, 128)
+        self.fc2 = nn.Linear(128, 10)
 
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2(x), 2))
-        x = x.view(-1, 320) # Flatten for the linear layer
-        x = F.relu(self.fc1(x))
-        return self.fc2(x)
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = F.max_pool2d(x, 2)
+        x = self.dropout1(x)
+        
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.dropout2(x)
+        
+        output = self.fc2(x)
+        return output
 
 def validate(model, device, val_loader):
-    model.eval() # Set model to evaluation mode (turns off Dropout, etc.)
+    model.eval()
     val_loss = 0
     correct = 0
-    with torch.no_grad(): # THE "Gradients-Off" switch
+    with torch.no_grad():
         for data, target in val_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
@@ -56,10 +72,11 @@ def validate(model, device, val_loader):
 
 model = SimpleCNN().to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.7)
 criterion = nn.CrossEntropyLoss()
 
 # 3. Training Loop
-for epoch in range(2):
+for epoch in range(10):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -74,6 +91,7 @@ for epoch in range(2):
             print(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f}')
     
     validate(model, device, val_loader)
+    scheduler.step()
 
-print("\nTraining complete! Your 4070 Ti Super just 'saw' and learned 60,000 digits.")
+print("\nTraining complete!")
 
