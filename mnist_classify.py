@@ -69,10 +69,11 @@ def validate(model, device, val_loader):
     val_loss /= len(val_loader.dataset)
     accuracy = 100. * correct / len(val_loader.dataset)
     print(f'\nValidation set: Average loss: {val_loss:.4f}, Accuracy: {correct}/{len(val_loader.dataset)} ({accuracy:.2f}%)\n')
+    return val_loss
 
 model = SimpleCNN().to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.7)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=1, factor=0.5)
 criterion = nn.CrossEntropyLoss()
 
 # 3. Training Loop
@@ -90,8 +91,8 @@ for epoch in range(10):
         if batch_idx % 100 == 0:
             print(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f}')
     
-    validate(model, device, val_loader)
-    scheduler.step()
+    val_loss = validate(model, device, val_loader)
+    scheduler.step(val_loss)
 
 print("\nTraining complete!")
 
