@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, random_split
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 transform = transforms.Compose([
+#    transforms.RandomRotation(10), # Rotate images +/- 10 degrees
     transforms.ToTensor(),
     transforms.Normalize((0.1307,), (0.3081,)) # MNIST mean and std
 ])
