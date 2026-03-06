@@ -1,0 +1,6 @@
+venv/
+pytorch_env/
+venv_312/
+data/
+__pycache__/
+*.pyc
