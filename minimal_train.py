@@ -1,3 +1,5 @@
+# Starting with a simple linear regression example using PyTorch to demonstrate the training process.
+# `python minimal_train.py` => will show you the training process and the learned parameters after 100 epochs.
 import torch
 import torch.nn as nn
 import torch.optim as optim
