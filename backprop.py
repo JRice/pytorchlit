@@ -26,7 +26,7 @@ def draw_dot(root):
             dot.edge(uid + n._op, uid)
     for n1, n2 in edges:
         dot.edge(str(id(n1)), str(id(n2)) + n2._op)
-    dot.render('graph.gv', format='svg', view=True)
+    dot.render('data/graph.gv', format='svg', view=True)
     return dot
 
 # Following along with Andrej Karpathy's "micrograd" implementation of backpropagation
