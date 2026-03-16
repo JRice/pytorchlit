@@ -20,7 +20,7 @@ def draw_dot(root):
     nodes, edges = trace(root)
     for n in nodes:
         uid = str(id(n))
-        dot.node(name=uid, label="{%s | data=%.4f}" % (n.label, n.data), shape='record')
+        dot.node(name=uid, label="{%s | data=%.4f | grad=%.4f}" % (n.label, n.data, n.grad), shape='record')
         if n._op:
             dot.node(name=uid + n._op, label=n._op)
             dot.edge(uid + n._op, uid)
@@ -38,6 +38,7 @@ class Value:
         self._prev = set(_children)
         self._op = _op
         self.label = label
+        self.grad = 0.0
 
     def __repr__(self):
         return f"Value(data={self.data})"
@@ -55,4 +56,27 @@ b = Value(-3.0, label='b')
 c = Value(10.0, label='c')
 e = a*b; e.label = 'e'
 d = e + c; d.label = 'd'
-draw_dot(d)
+f = Value(-2.0, label='f')
+L = d * f; L.label = 'L'
+L.grad = 1.0
+f.grad = d.data
+d.grad = f.data
+c.grad = d.grad # Really, times 1, but still.
+e.grad = d.grad # Again, times 1...
+a.grad = e.grad * b.data
+b.grad = e.grad * a.data
+draw_dot(L)
+
+# Now that we have the gradients, we can do a simple parameter update step:
+rate = 0.01
+a.data += rate * a.grad
+b.data += rate * b.grad
+c.data += rate * c.grad
+f.data += rate * f.grad
+
+e = a*b
+d = e + c
+L = d * f
+
+print("After one step of gradient descent:")
+print(L.data)
