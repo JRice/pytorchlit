@@ -45,18 +45,48 @@ class Value:
         return f"Value(data={self.data})"
     
     def __add__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data + other.data, (self, other), '+')
         def _backward():
-            self.grad = out.grad
-            other.grad = out.grad
+            self.grad += out.grad
+            other.grad += out.grad
         out._backward = _backward
         return out
     
+    def __neg__(self):
+        return self * -1
+    
+    def __sub__(self, other):
+        return self + (-other)
+    
     def __mul__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data * other.data, (self, other), '*')
         def _backward():
-            self.grad = other.data * out.grad
-            other.grad = self.data * out.grad
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+        out._backward = _backward
+        return out
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
+    
+    def __pow__(self, other):
+        assert isinstance(other, (int, float)), "only supporting int/float powers for now"
+        out = Value(self.data ** other, (self,), f'**{other}')
+        def _backward():
+            self.grad += other * (self.data ** (other - 1)) * out.grad
+        out._backward = _backward
+        return out
+
+    def __truediv__(self, other):
+        return self * other**-1
+
+    def exp(self):
+        x = self.data
+        out = Value(math.exp(x), (self,), 'exp')
+        def _backward():
+            self.grad += out.data * out.grad
         out._backward = _backward
         return out
 
@@ -65,10 +95,26 @@ class Value:
         t = (math.exp(2*x) - 1) / (math.exp(2*x) + 1)
         out = Value(t, (self,), 'tanh')
         def _backward():
-            self.grad = (1 - t**2) * out.grad
+            self.grad += (1 - t**2) * out.grad
         out._backward = _backward
         return out
 
+    def backward(self):
+        topo = []
+        visited = set()
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._prev:
+                    build_topo(child)
+                topo.append(v)
+        build_topo(self)
+        self.grad = 1.0
+        for node in reversed(topo):
+            node._backward()
+                
+        return topo
+    
 def simple_backprop():
     a = Value(2.0, label='a')
     b = Value(-3.0, label='b')
@@ -118,19 +164,11 @@ def tiny_nn_backprop():
     x2w2 = x2 * w2; x2w2.label = 'connection2*weight2'
     x1w1xx2w2 = x1w1 + x2w2; x1w1xx2w2.label = 'connection1*weight1+connection2*weight2'
     n = x1w1xx2w2 + b; n.label = 'neuron'
-    o = n.tanh(); o.label = 'output'
+    # o = n.tanh(); o.label = 'output'
+    e = (2*n).exp(); e.label = 'exp(2*neuron)'
+    o = (e - 1) / (e + 1); o.label = 'output'
 
-    o.grad = 1.0
-    n.grad = 1 - o.data**2 # Again: TECHNICALLY, times 1 from the composition rule, but we can ignore that.
-    x1w1xx2w2.grad = n.grad
-    b.grad = n.grad
-    x1w1.grad = x1w1xx2w2.grad
-    x2w2.grad = x1w1xx2w2.grad
-    x1.grad = x1w1.grad * w1.data
-    w1.grad = x1w1.grad * x1.data
-    x2.grad = x2w2.grad * w2.data
-    w2.grad = x2w2.grad * x2.data
-
+    o.backward()
     draw_dot(o)
 
 tiny_nn_backprop()
