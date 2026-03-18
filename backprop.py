@@ -220,6 +220,7 @@ def tiny_nn_backprop():
     o.backward()
     draw_dot(o)
 
+# Simple test of the MLP and stepping forward through it.
 def fwd_through_mlp():
     x = [2.0, 3.0, -1.0]
     mlp = MLP(3, [4, 4, 1])
@@ -243,13 +244,16 @@ desired_outs = [1.0, -1.0, -1.0, 1.0] # Desired outputs for the above inputs.
 
 mlp = MLP(3, [4, 4, 1])
 
-def calculate_and_show_loss():
+def forward_pass():
     y_outputs = [mlp(x) for x in inputs]
     print("Outputs:")
     for out, deso in zip(y_outputs, desired_outs):
         print(f"out: {out.data:.4f} vs desired: {deso}")
 
     loss = sum((y_out - y_ground_truth)**2 for y_ground_truth, y_out in zip(desired_outs, y_outputs))
+    return loss
+
+def backward_pass():
     loss.backward()
     print("Loss:")
     print(f"{loss.data:.4f}")
@@ -262,21 +266,11 @@ def check_first_neuron():
 
 def nudge_parameters():
     for p in mlp.parameters():
-        p.data += -0.08 * p.grad
+        p.data += -0.06 * p.grad
 
-
-print("---FIRST PASS---")
-calculate_and_show_loss()
-print("Parameters:")
-print(len(mlp.parameters()))
-check_first_neuron()
-nudge_parameters()
-print("---SECOND PASS---")
-calculate_and_show_loss()
-check_first_neuron()
-nudge_parameters()
-print("---THIRD PASS---")
-calculate_and_show_loss()
-nudge_parameters()
-print("---FOURTH PASS---")
-calculate_and_show_loss()
+for k in range(10):
+    loss = forward_pass()
+    backward_pass()
+    check_first_neuron()
+    nudge_parameters()
+    print(f"Pass {k}: Loss={loss.data:.4f}")
