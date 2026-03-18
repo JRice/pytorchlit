@@ -54,6 +54,9 @@ class Value:
         out._backward = _backward
         return out
     
+    def __radd__(self, other):
+        return self.__add__(other)
+    
     def __neg__(self):
         return self * -1
     
@@ -124,6 +127,9 @@ class Neuron:
     def __call__(self, x):
         act = sum((weight*connection for weight, connection in zip(self.w, x)), self.b)
         return act.tanh()
+    
+    def parameters(self):
+        return self.w + [self.b]
 
 # Note the number of outputs (nout) is the number of neurons in the layer, and the number of inputs (nin) is the number of connections
 # to each neuron.
@@ -134,6 +140,9 @@ class Layer:
     def __call__(self, x):
         outs = [neuron(x) for neuron in self.neurons]
         return outs if len(outs) > 1 else outs[0]
+
+    def parameters(self):
+        return [param for neuron in self.neurons for param in neuron.parameters()]
 
 # Simple Multi-layer Perceptron (MLP) with one hidden layer. The number of inputs is the number of inputs to the first layer, and the
 # number of outputs (nout) is a list of the number of neurons in each layer (including the number of outputs at the end). For example,
@@ -147,6 +156,9 @@ class MLP:
         for layer in self.layers:
             x = layer(x)
         return x # will return the last layer's output.
+    
+    def parameters(self):
+        return [param for layer in self.layers for param in layer.parameters()]
 
 # An early version of the code that manually did the backpropagation steps, before we implemented the automatic backpropagation in the
 # Value class. This is just to show how the gradients are calculated, and to check that our implementation of the backward() method is
@@ -208,8 +220,63 @@ def tiny_nn_backprop():
     o.backward()
     draw_dot(o)
 
-x = [2.0, 3.0, -1.0]
+def fwd_through_mlp():
+    x = [2.0, 3.0, -1.0]
+    mlp = MLP(3, [4, 4, 1])
+    result = mlp(x)
+    print(result)
+    draw_dot(result)
+
+# Let's test a simple binary classifier:
+inputs = [
+    [2.0, 3.0, -1.0],
+    [3.0, -1.0, 0.5],
+    [0.5, 1.0, 1.0],
+    [1.0, 1.0, -1.0],
+    # [1.0, -1.0, -1.0],
+    # [-1.0, 1.0, 1.0],
+    # [-1.0, -1.0, 1.0],
+    # [-1.0, 1.0, -1.0],
+    # [-2.0, 2.0, 1.5],
+]
+desired_outs = [1.0, -1.0, -1.0, 1.0] # Desired outputs for the above inputs.
+
 mlp = MLP(3, [4, 4, 1])
-result = mlp(x)
-print(result)
-draw_dot(result)
+
+def calculate_and_show_loss():
+    y_outputs = [mlp(x) for x in inputs]
+    print("Outputs:")
+    for out, deso in zip(y_outputs, desired_outs):
+        print(f"out: {out.data:.4f} vs desired: {deso}")
+
+    loss = sum((y_out - y_ground_truth)**2 for y_ground_truth, y_out in zip(desired_outs, y_outputs))
+    loss.backward()
+    print("Loss:")
+    print(f"{loss.data:.4f}")
+
+def check_first_neuron():
+    print("First param data:")
+    print(mlp.layers[0].neurons[0].w[0].data)
+    print("First param grad:")
+    print(mlp.layers[0].neurons[0].w[0].grad)
+
+def nudge_parameters():
+    for p in mlp.parameters():
+        p.data += -0.08 * p.grad
+
+
+print("---FIRST PASS---")
+calculate_and_show_loss()
+print("Parameters:")
+print(len(mlp.parameters()))
+check_first_neuron()
+nudge_parameters()
+print("---SECOND PASS---")
+calculate_and_show_loss()
+check_first_neuron()
+nudge_parameters()
+print("---THIRD PASS---")
+calculate_and_show_loss()
+nudge_parameters()
+print("---FOURTH PASS---")
+calculate_and_show_loss()
