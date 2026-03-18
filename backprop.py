@@ -132,7 +132,21 @@ class Layer:
         self.neurons = [Neuron(nin) for _ in range(nout)]
 
     def __call__(self, x):
-        return [neuron(x) for neuron in self.neurons]
+        outs = [neuron(x) for neuron in self.neurons]
+        return outs if len(outs) > 1 else outs[0]
+
+# Simple Multi-layer Perceptron (MLP) with one hidden layer. The number of inputs is the number of inputs to the first layer, and the
+# number of outputs (nout) is a list of the number of neurons in each layer (including the number of outputs at the end). For example,
+# if nouts is [4, 4, 1], then there are two layers with 4 neurons, and there is one output.
+class MLP:
+    def __init__(self, nin, nouts):
+        sz = [nin] + nouts
+        self.layers = [Layer(sz[i], sz[i+1]) for i in range(len(nouts))]
+
+    def __call__(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x # will return the last layer's output.
 
 # An early version of the code that manually did the backpropagation steps, before we implemented the automatic backpropagation in the
 # Value class. This is just to show how the gradients are calculated, and to check that our implementation of the backward() method is
@@ -194,6 +208,8 @@ def tiny_nn_backprop():
     o.backward()
     draw_dot(o)
 
-x = [2.0, 3.0]
-n = Layer(2, 3)
-print(n(x))
+x = [2.0, 3.0, -1.0]
+mlp = MLP(3, [4, 4, 1])
+result = mlp(x)
+print(result)
+draw_dot(result)
