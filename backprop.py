@@ -268,7 +268,7 @@ def zero_grads():
 
 def nudge_parameters():
     for p in mlp.parameters():
-        p.data += -0.075 * p.grad
+        p.data += -0.1 * p.grad
 
 for k in range(30):
     print(f"## PASS {k+1} ##")
