@@ -255,8 +255,6 @@ def forward_pass():
 
 def backward_pass():
     loss.backward()
-    print("Loss:")
-    print(f"{loss.data:.4f}")
 
 def check_first_neuron():
     print("First param data:")
@@ -264,13 +262,19 @@ def check_first_neuron():
     print("First param grad:")
     print(mlp.layers[0].neurons[0].w[0].grad)
 
+def zero_grads():
+    for p in mlp.parameters():
+        p.grad = 0.0
+
 def nudge_parameters():
     for p in mlp.parameters():
-        p.data += -0.06 * p.grad
+        p.data += -0.075 * p.grad
 
-for k in range(10):
+for k in range(30):
+    print(f"## PASS {k+1} ##")
     loss = forward_pass()
+    zero_grads()
     backward_pass()
-    check_first_neuron()
     nudge_parameters()
-    print(f"Pass {k}: Loss={loss.data:.4f}")
+    check_first_neuron()
+    print(f"-- LOSS={loss.data:.4f}")
