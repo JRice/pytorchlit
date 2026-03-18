@@ -259,6 +259,8 @@ def backward_pass():
 def check_first_neuron():
     print("First param data:")
     print(mlp.layers[0].neurons[0].w[0].data)
+    print("First param bias:")
+    print(mlp.layers[0].neurons[0].b.data)
     print("First param grad:")
     print(mlp.layers[0].neurons[0].w[0].grad)
 
