@@ -1,4 +1,5 @@
 import math
+from multiprocessing.dummy import connection
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -114,7 +115,28 @@ class Value:
             node._backward()
                 
         return topo
-    
+
+class Neuron:
+    def __init__(self, nin):
+        self.w = [Value(np.random.uniform(-1,1)) for _ in range(nin)]
+        self.b = Value(np.random.uniform(-1,1))
+
+    def __call__(self, x):
+        act = sum((weight*connection for weight, connection in zip(self.w, x)), self.b)
+        return act.tanh()
+
+# Note the number of outputs (nout) is the number of neurons in the layer, and the number of inputs (nin) is the number of connections
+# to each neuron.
+class Layer:
+    def __init__(self, nin, nout):
+        self.neurons = [Neuron(nin) for _ in range(nout)]
+
+    def __call__(self, x):
+        return [neuron(x) for neuron in self.neurons]
+
+# An early version of the code that manually did the backpropagation steps, before we implemented the automatic backpropagation in the
+# Value class. This is just to show how the gradients are calculated, and to check that our implementation of the backward() method is
+# correct.
 def simple_backprop():
     a = Value(2.0, label='a')
     b = Value(-3.0, label='b')
@@ -146,13 +168,14 @@ def simple_backprop():
     print("After one step of gradient descent:")
     print(L.data)
 
+# Just a quick check to see what the tanh function looks like, since we're using it as an activation function in our tiny neural network.
 def show_tanh():
     plt.plot(np.arange(-5,5,0.2), np.tanh(np.arange(-5,5,0.2)))
     plt.grid(True)
     plt.savefig('data/plot.png')
 
+# Let's build a tiny neural network and backprop through it.
 def tiny_nn_backprop():
-    # Let's build a tiny neural network and backprop through it.
     x1 = Value(2.0, label='connection1')
     x2 = Value(0.0, label='connection2')
 
@@ -171,4 +194,6 @@ def tiny_nn_backprop():
     o.backward()
     draw_dot(o)
 
-tiny_nn_backprop()
+x = [2.0, 3.0]
+n = Layer(2, 3)
+print(n(x))
