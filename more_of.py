@@ -89,35 +89,6 @@ evaluate_words(words[:3], N, BigramProbs, string_to_int)
 evaluate_words(['grok'], N, BigramProbs, string_to_int)
 evaluate_words(['jeremyq'], N, BigramProbs, string_to_int)
 
-# Conventionally, x for input, y for output:
-xs, ys = [], []
-
-for w in words[:1]:
-    chars = ['.'] + list(w) + ['.']
-    for ch1, ch2 in zip(chars, chars[1:]):
-        int_ch1 = string_to_int[ch1]
-        int_ch2 = string_to_int[ch2]
-        xs.append(int_ch1)
-        ys.append(int_ch2)
-
-
-def forward_pass(xs, W):
-    xenc = F.one_hot(xs, num_classes=len(string_to_int)).float()
-    logits = xenc @ W # Matrix multiplication to get the logits for the next character
-    counts = logits.exp() # Convert logits to counts by taking the exponential
-    probs = counts / counts.sum(dim=1, keepdim=True) # Convert counts to probabilities
-    print("Probabilities from the untrained model for Emma:")
-    emma_probs = probs[torch.arange(len(words[0]) + 1), ys]
-    print(emma_probs)
-    loss = -emma_probs.log().mean()
-    print('Loss:')
-    print(f'{loss=:.4f}')
-    return loss
-
-def backward_pass(W, loss):
-    W.grad = None
-    loss.backward()
-
 def evaluate_neuron(word, xs, ys, prob):
     nlls = torch.zeros(len(word))
     for i in range(len(word)):
@@ -138,15 +109,45 @@ def evaluate_neuron(word, xs, ys, prob):
     print(f"{nlls.sum()=: .4f}")
     print(f"Average negative log-likelihood: {nlls.mean().item():.4f}")
 
-# evaluate_neuron(words[0], xs, ys, prob)
+
+def forward_pass(xs, W, num):
+    xenc = F.one_hot(xs, num_classes=len(string_to_int)).float()
+    logits = xenc @ W # Matrix multiplication to get the logits for the next character
+    counts = logits.exp() # Convert logits to counts by taking the exponential
+    probs = counts / counts.sum(1, keepdim=True) # Convert counts to probabilities
+    loss = -probs[torch.arange(num), ys].log().mean()
+    print(f"{loss.item()=: .4f}")
+    return loss
+
+def backward_pass(W, loss):
+    W.grad = None
+    loss.backward()
+
+def update(W, lr):
+    W.data += -lr * W.grad # Update the weights using gradient descent
+
+print('### Neural Network Approach ###')
+
+# Conventionally, x for input, y for output:
+xs, ys = [], []
+for w in words:
+    chars = ['.'] + list(w) + ['.']
+    for ch1, ch2 in zip(chars, chars[1:]):
+        int_ch1 = string_to_int[ch1]
+        int_ch2 = string_to_int[ch2]
+        xs.append(int_ch1)
+        ys.append(int_ch2)
 
 xs = torch.tensor(xs)
 ys = torch.tensor(ys)
-
+num = xs.nelement()
+print(f"Number of examples: {num}")
 W = torch.randn(len(string_to_int), len(string_to_int), generator=generator, requires_grad=True) # One-hot encode the input characters
 
-for _ in range(10):
-    loss = forward_pass(xs, W)
+for k in range(200):
+    loss = forward_pass(xs, W, num)
     backward_pass(W, loss)
-    W.data += -0.1 * W.grad # Update the weights using gradient descent
-    loss = forward_pass(xs, W)
+    update(W, 50)
+# Final check:
+loss = forward_pass(xs, W, num)
+
