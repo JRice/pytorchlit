@@ -47,11 +47,10 @@ def show_heatmap(N, string_to_int, int_to_string):
     plt.axis('off')
     plt.show()
 
-generator = torch.Generator().manual_seed(2147483647) # Just for reproducibility
 # Note we add one to the counts to avoid zero probabilities, which would cause issues when we take the log of the probabilities later on.
 BigramProbs = (N+1).float() / N.sum(dim=1, keepdim=True) # Convert counts to probabilities
 
-def sample_bigram(N, string_to_int, int_to_string):
+def sample_bigram(N, string_to_int, int_to_string, generator):
     index = 0
     name = ''
 
@@ -62,11 +61,6 @@ def sample_bigram(N, string_to_int, int_to_string):
         if index == 0:
             break
     print(f"Generated name: '{name}'")
-
-print("### Simple Sample of Bigrams ###")
-
-for _ in range(10):
-    sample_bigram(N, string_to_int, int_to_string)
 
 def evaluate_words(words_list, N, BigramProbs, string_to_int):
     negative_log_likelihood = 0.0
@@ -84,10 +78,16 @@ def evaluate_words(words_list, N, BigramProbs, string_to_int):
     print(f"For the names {', '.join(words_list)}:")
     print(f"{negative_log_likelihood=:.4f}")
     print(f"Average negative log-likelihood: {negative_log_likelihood / count:.4f}")
-    
-evaluate_words(words[:3], N, BigramProbs, string_to_int)
-evaluate_words(['grok'], N, BigramProbs, string_to_int)
-evaluate_words(['jeremyq'], N, BigramProbs, string_to_int)
+
+print("### Simple Sample of Bigrams ###")
+
+generator = torch.Generator().manual_seed(2147483647) # Just for reproducibility
+for _ in range(10):
+    sample_bigram(N, string_to_int, int_to_string, generator)
+
+# evaluate_words(words[:3], N, BigramProbs, string_to_int)
+# evaluate_words(['grok'], N, BigramProbs, string_to_int)
+# evaluate_words(['jeremyq'], N, BigramProbs, string_to_int)
 
 def evaluate_neuron(word, xs, ys, prob):
     nlls = torch.zeros(len(word))
@@ -109,14 +109,27 @@ def evaluate_neuron(word, xs, ys, prob):
     print(f"{nlls.sum()=: .4f}")
     print(f"Average negative log-likelihood: {nlls.mean().item():.4f}")
 
+def sample_nn(W, int_to_string, generator):
+    index = 0
+    name = ''
 
-def forward_pass(xs, W, num):
+    while True:
+        xenc = F.one_hot(torch.tensor([index]), num_classes=len(string_to_int)).float()
+        logits = xenc @ W
+        prob = F.softmax(logits, dim=1)
+        index = torch.multinomial(prob, num_samples=1, replacement=True, generator=generator).item()
+        name += int_to_string[index]
+        if index == 0:
+            break
+    print(f"Generated name: '{name}'")
+
+def forward_pass(xs, W, num, regularization_strength=0.01):
     xenc = F.one_hot(xs, num_classes=len(string_to_int)).float()
     logits = xenc @ W # Matrix multiplication to get the logits for the next character
     counts = logits.exp() # Convert logits to counts by taking the exponential
     probs = counts / counts.sum(1, keepdim=True) # Convert counts to probabilities
-    loss = -probs[torch.arange(num), ys].log().mean()
-    print(f"{loss.item()=: .4f}")
+    loss = -probs[torch.arange(num), ys].log().mean() + regularization_strength * (W**2).mean() # Cross-entropy loss + L2 regularization
+    # print(f"{loss.item()=: .4f}")
     return loss
 
 def backward_pass(W, loss):
@@ -145,9 +158,12 @@ print(f"Number of examples: {num}")
 W = torch.randn(len(string_to_int), len(string_to_int), generator=generator, requires_grad=True) # One-hot encode the input characters
 
 for k in range(200):
-    loss = forward_pass(xs, W, num)
+    loss = forward_pass(xs, W, num, 0.001)
     backward_pass(W, loss)
     update(W, 50)
 # Final check:
-loss = forward_pass(xs, W, num)
+print("--> LOSS after training:" , forward_pass(xs, W, num).item())
 
+generator = torch.Generator().manual_seed(2147483647) # Just for reproducibility
+for i in range(5):
+    sample_nn(W, int_to_string, generator)
