@@ -109,5 +109,23 @@ def train_epoch(X, Y, iterations, learning_rate, iter_count):
     print(f"Development set Loss: {forward(Xdev, Ydev).item()}")
     print(f"Training set Loss: {forward(Xtr, Ytr).item()}")
 
+def sample_from_model():
+    for _ in range(20):
+        out = []
+        context = [0] * block_size # Starts with all '.'s.
+        while True:
+            emb = C[torch.tensor(context)]
+            h = torch.tanh(emb.view(1, -1) @ W1 + b1)
+            logits = h @ W2 + b2 # The output layer activations, which we'll interpret as unnormalized log probabilities for each character in the vocabulary
+            probs = F.softmax(logits, dim=1)
+            ix = torch.multinomial(probs, num_samples=1, generator=g).item()
+            context = context[1:] + [ix]
+            out.append(ix)
+            if ix == 0:
+                break
+        
+        print(''.join(itos[i] for i in out))
+
 
 train()
+sample_from_model()
